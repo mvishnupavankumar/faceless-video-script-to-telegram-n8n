@@ -1,0 +1,126 @@
+{
+  "name": "VEDIO SCRIPT TO TELEGRAM",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-280, 0],
+      "id": "YOUR_TRIGGER_ID",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENROUTER_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "= {\n  \"model\": \"mistralai/mistral-7b-instruct\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a professional AI video scriptwriter. You create realistic, cinematic, faceless video scripts with high-definition visuals for 60-second reels. Each video is broken into 6 scenes, each lasting 8–10 seconds. There is no dialogue, no music, and no narration — only the visuals tell the story. Your scripts are imaginative, story-rich, and perfect for automation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate a fresh, creative, and cinematic video concept for today. Break the video into 6 scenes with detailed, faceless visual descriptions that look hyper-realistic. Focus on mood, actions, lighting, transitions, camera angles, and realistic details that are easy to generate with AI video/image tools. No talking, no music, only actions and emotions through visuals. Keep it highly engaging and viral-worthy for Instagram Reels or YouTube Shorts. Duration: 60 seconds. Output in this format:\\n\\n**Title:**\\n\\n**Scene 1:** [8-10 sec visual description]\\n**Scene 2:** [8-10 sec visual description]\\n**Scene 3:** [8-10 sec visual description]\\n**Scene 4:** [8-10 sec visual description]\\n**Scene 5:** [8-10 sec visual description]\\n**Scene 6:** [8-10 sec visual description]\\n\\nMake it extremely visual, cinematic, faceless, and highly realistic. Use vivid visual storytelling techniques.\"\n    }\n  ]\n}\n",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-60, 0],
+      "id": "YOUR_NODE_ID_1",
+      "name": "SCRIPT"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "YOUR_ASSIGNMENT_ID",
+              "name": "SCRIPT",
+              "value": "={{ $json.body.choices[0].message.content }} ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [160, 0],
+      "id": "YOUR_NODE_ID_2",
+      "name": "SENDING SCRIPT"
+    },
+    {
+      "parameters": {
+        "jsCode": " const script = $json.SCRIPT;\n\nif (!script) {\n  return [{ json: { error: \"SCRIPT field is empty or missing\" } }];\n}\n\nconst sceneMatches = script.match(/\\*\\*Scene \\d:\\*\\*.*?(?=(\\*\\*Scene \\d:\\*\\*|$))/gs);\n\nif (!sceneMatches) {\n  return [{ json: { error: \"No scenes found\" } }];\n}\n\nreturn sceneMatches.map((scene, index) => {\n  const cleanText = scene.replace(/\\*\\*Scene \\d:\\*\\*\\s*/g, '').trim();\n  return {\n    json: {\n      [`Scene ${index + 1}`]: cleanText\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [380, 0],
+      "id": "YOUR_NODE_ID_3",
+      "name": "CLEAN SCRIPT"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "= {{ Object.keys($json)[0] }}:\n{{ Object.values($json)[0] }}\n\n\nOVER FOR :{{ $('Schedule Trigger').item.json['Readable date'] }}\n",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [600, 0],
+      "id": "YOUR_NODE_ID_4",
+      "name": "Send a text message",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_CREDENTIAL_NAME"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{"node": "SCRIPT", "type": "main", "index": 0}]]
+    },
+    "SCRIPT": {
+      "main": [[{"node": "SENDING SCRIPT", "type": "main", "index": 0}]]
+    },
+    "SENDING SCRIPT": {
+      "main": [[{"node": "CLEAN SCRIPT", "type": "main", "index": 0}]]
+    },
+    "CLEAN SCRIPT": {
+      "main": [[{"node": "Send a text message", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
